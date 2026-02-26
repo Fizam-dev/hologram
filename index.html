@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hologram Kawalan Tangan</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000; /* Latar belakang hitam penting untuk kesan hologram */
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: #0ff;
+            font-family: sans-serif;
+        }
+        /* Sembunyikan video kamera asal, kita hanya mahu lihat 'hologram' */
+        .input_video {
+            display: none; 
+        }
+        .output_canvas {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+        }
+        #status {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 1.2rem;
+            text-shadow: 0 0 5px #0ff;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="status">Memuatkan kamera dan sistem AI...</div>
+    <video class="input_video"></video>
+    <canvas class="output_canvas" width="1280" height="720"></canvas>
+
+    <script>
+        const videoElement = document.querySelector('.input_video');
+        const canvasElement = document.querySelector('.output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const statusText = document.getElementById('status');
+
+        // Fungsi yang dipanggil setiap kali MediaPipe mengesan tangan
+        function onResults(results) {
+            statusText.innerText = "Kamera aktif. Tunjukkan tangan anda!";
+            
+            // Bersihkan canvas untuk frame baru (latar belakang hitam)
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            canvasCtx.fillStyle = 'black';
+            canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                // Ambil data tangan pertama yang dikesan
+                const hand = results.multiHandLandmarks[0];
+                
+                // Ambil koordinat jari telunjuk (titik ke-8 dalam MediaPipe)
+                const indexFinger = hand[8];
+                const x = indexFinger.x * canvasElement.width;
+                const y = indexFinger.y * canvasElement.height;
+
+                // Melukis "Hologram" - Bebola cahaya yang mengekori jari
+                canvasCtx.beginPath();
+                canvasCtx.arc(x, y, 50, 0, 2 * Math.PI);
+                
+                // Kesan bercahaya (glow)
+                canvasCtx.shadowBlur = 30;
+                canvasCtx.shadowColor = "cyan";
+                canvasCtx.fillStyle = "rgba(0, 255, 255, 0.8)";
+                canvasCtx.fill();
+                
+                // Tambah lapisan dalam untuk nampak 3D
+                canvasCtx.beginPath();
+                canvasCtx.arc(x, y, 20, 0, 2 * Math.PI);
+                canvasCtx.fillStyle = "white";
+                canvasCtx.fill();
+            }
+            canvasCtx.restore();
+        }
+
+        // Tetapan MediaPipe Hands
+        const hands = new Hands({locateFile: (file) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+        }});
+        
+        hands.setOptions({
+            maxNumHands: 1, // Kesan 1 tangan sahaja untuk kelancaran
+            modelComplexity: 1,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+        hands.onResults(onResults);
+
+        // Mulakan Kamera
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await hands.send({image: videoElement});
+            },
+            width: 1280,
+            height: 720
+        });
+        
+        camera.start()
+            .then(() => { console.log("Kamera bermula"); })
+            .catch((err) => { statusText.innerText = "Ralat: Sila benarkan akses kamera."; });
+    </script>
+</body>
+</html>
