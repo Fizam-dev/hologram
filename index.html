@@ -3,118 +3,651 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hologram Kawalan Tangan</title>
+    <title>Hologram Kawalan Tangan - Mod Zarah Interaktif</title>
+    
+    <!-- Google Fonts: Orbitron & Rajdhani -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+
+    <!-- MediaPipe Hands & Camera Utils -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
     
+    <!-- Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
     <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+
         body {
             margin: 0;
             padding: 0;
-            background-color: #000; /* Latar belakang hitam penting untuk kesan hologram */
+            background-color: #010206;
             overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            font-family: 'Rajdhani', sans-serif;
+            color: #ffffff;
             height: 100vh;
-            color: #0ff;
-            font-family: sans-serif;
-        }
-        /* Sembunyikan video kamera asal, kita hanya mahu lihat 'hologram' */
-        .input_video {
-            display: none; 
-        }
-        .output_canvas {
             width: 100vw;
-            height: 100vh;
-            display: block;
         }
-        #status {
+
+        /* Pure Dark Deep Space Canvases */
+        #webgl-canvas {
             position: absolute;
-            top: 20px;
-            left: 20px;
-            font-size: 1.2rem;
-            text-shadow: 0 0 5px #0ff;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            z-index: 2;
+        }
+
+        #overlay-canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            z-index: 3;
+            pointer-events: none;
+        }
+
+        .input_video { display: none; }
+
+        /* Minimal Clean UI - Pure Ambient Hologram Style */
+        .hud-status-badge {
+            position: absolute;
+            top: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(5, 12, 25, 0.65);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(0, 243, 255, 0.3);
+            padding: 10px 28px;
+            border-radius: 40px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.85rem;
+            color: #00f3ff;
+            box-shadow: 0 0 30px rgba(0, 243, 255, 0.2);
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            pointer-events: none;
+            letter-spacing: 1.5px;
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #00f3ff;
+            border-radius: 50%;
+            box-shadow: 0 0 12px #00f3ff;
+            animation: pulse 1.2s infinite alternate;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            100% { transform: scale(1.5); opacity: 1; }
+        }
+
+        /* Active Shape Indicator Badge (Bottom Center) */
+        .shape-badge {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(10, 15, 30, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 8px 24px;
+            border-radius: 30px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.9rem;
+            color: #ffffff;
+            z-index: 20;
+            pointer-events: none;
+            box-shadow: 0 0 25px rgba(0, 0, 0, 0.5);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Subtle Camera Viewfinder PiP (Bottom Right) */
+        .camera-pip {
+            position: absolute;
+            bottom: 25px;
+            right: 25px;
+            width: 140px;
+            height: 100px;
+            background: #000;
+            border: 1px solid rgba(0, 243, 255, 0.4);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
+            z-index: 25;
+            opacity: 0.85;
+            transition: opacity 0.3s;
+        }
+
+        .camera-pip:hover {
+            opacity: 1;
+        }
+
+        .camera-pip-canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+        }
+
+        .camera-pip-label {
+            position: absolute;
+            top: 4px; left: 6px;
+            font-size: 0.55rem;
+            font-family: 'Orbitron', sans-serif;
+            color: #00f3ff;
+            background: rgba(0,0,0,0.7);
+            padding: 2px 4px;
+            border-radius: 3px;
         }
     </style>
 </head>
 <body>
 
-    <div id="status">Memuatkan kamera dan sistem AI...</div>
-    <video class="input_video"></video>
-    <canvas class="output_canvas" width="1280" height="720"></canvas>
+    <!-- Canvases -->
+    <canvas id="webgl-canvas"></canvas>
+    <canvas id="overlay-canvas"></canvas>
+    <video class="input_video" playsinline></video>
+
+    <!-- Top Status Banner -->
+    <div class="hud-status-badge">
+        <div class="pulse-dot"></div>
+        <span id="status-text">Kamera aktif! Tunjukkan tangan anda ke arah kamera</span>
+    </div>
+
+    <!-- Active Gesture Shape Badge -->
+    <div class="shape-badge" id="shape-badge">
+        ✨ Mod Zarah Bebas (Buka Tangan Untuk Bintang)
+    </div>
+
+    <!-- Subtle Camera PiP -->
+    <div class="camera-pip">
+        <div class="camera-pip-label">CAMERA PIP</div>
+        <canvas class="camera-pip-canvas" id="pip-canvas"></canvas>
+    </div>
 
     <script>
+        // Global App State
+        const state = {
+            activeMorph: 'SWARM', // 'HEART', 'SATURN', 'STARBURST', 'POINT', 'PINCH', 'SWARM'
+            currentGesture: 'NONE',
+            handPos: { x: 0.5, y: 0.5, z: 0 },
+            handDetected: false,
+            pinchDistance: 1.0,
+            mirrored: true,
+            themeColor: '#00f3ff'
+        };
+
+        // DOM References
+        const webglCanvas = document.getElementById('webgl-canvas');
+        const overlayCanvas = document.getElementById('overlay-canvas');
+        const overlayCtx = overlayCanvas.getContext('2d');
+        const pipCanvas = document.getElementById('pip-canvas');
+        const pipCtx = pipCanvas.getContext('2d');
         const videoElement = document.querySelector('.input_video');
-        const canvasElement = document.querySelector('.output_canvas');
-        const canvasCtx = canvasElement.getContext('2d');
-        const statusText = document.getElementById('status');
+        const statusText = document.getElementById('status-text');
+        const shapeBadge = document.getElementById('shape-badge');
 
-        // Fungsi yang dipanggil setiap kali MediaPipe mengesan tangan
-        function onResults(results) {
-            statusText.innerText = "Kamera aktif. Tunjukkan tangan anda!";
-            
-            // Bersihkan canvas untuk frame baru (latar belakang hitam)
-            canvasCtx.save();
-            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-            canvasCtx.fillStyle = 'black';
-            canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
-
-            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                // Ambil data tangan pertama yang dikesan
-                const hand = results.multiHandLandmarks[0];
-                
-                // Ambil koordinat jari telunjuk (titik ke-8 dalam MediaPipe)
-                const indexFinger = hand[8];
-                const x = indexFinger.x * canvasElement.width;
-                const y = indexFinger.y * canvasElement.height;
-
-                // Melukis "Hologram" - Bebola cahaya yang mengekori jari
-                canvasCtx.beginPath();
-                canvasCtx.arc(x, y, 50, 0, 2 * Math.PI);
-                
-                // Kesan bercahaya (glow)
-                canvasCtx.shadowBlur = 30;
-                canvasCtx.shadowColor = "cyan";
-                canvasCtx.fillStyle = "rgba(0, 255, 255, 0.8)";
-                canvasCtx.fill();
-                
-                // Tambah lapisan dalam untuk nampak 3D
-                canvasCtx.beginPath();
-                canvasCtx.arc(x, y, 20, 0, 2 * Math.PI);
-                canvasCtx.fillStyle = "white";
-                canvasCtx.fill();
+        function resizeCanvases() {
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            webglCanvas.width = w; webglCanvas.height = h;
+            overlayCanvas.width = w; overlayCanvas.height = h;
+            if (renderer) {
+                renderer.setSize(w, h);
+                camera3D.aspect = w / h;
+                camera3D.updateProjectionMatrix();
             }
-            canvasCtx.restore();
+        }
+        window.addEventListener('resize', resizeCanvases);
+
+        // ==========================================
+        // 1. WEB AUDIO SYNTHESIZER (Sci-Fi Ambient)
+        // ==========================================
+        let audioCtx = null;
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         }
 
-        // Tetapan MediaPipe Hands
-        const hands = new Hands({locateFile: (file) => {
-            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
-        }});
-        
-        hands.setOptions({
-            maxNumHands: 1, // Kesan 1 tangan sahaja untuk kelancaran
-            modelComplexity: 1,
-            minDetectionConfidence: 0.5,
-            minTrackingConfidence: 0.5
-        });
-        hands.onResults(onResults);
+        function playGestureSound(type) {
+            try {
+                initAudio();
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
 
-        // Mulakan Kamera
-        const camera = new Camera(videoElement, {
-            onFrame: async () => {
-                await hands.send({image: videoElement});
-            },
-            width: 1280,
-            height: 720
-        });
-        
-        camera.start()
-            .then(() => { console.log("Kamera bermula"); })
-            .catch((err) => { statusText.innerText = "Ralat: Sila benarkan akses kamera."; });
+                if (type === 'heart') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(440, now);
+                    osc.frequency.exponentialRampToValueAtTime(880, now + 0.3);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                } else if (type === 'saturn') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(180, now);
+                    osc.frequency.exponentialRampToValueAtTime(60, now + 0.4);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                } else if (type === 'star') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(800, now);
+                    osc.frequency.exponentialRampToValueAtTime(1600, now + 0.25);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                }
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } catch (e) {}
+        }
+
+        // ==========================================
+        // 2. THREE.JS 6,000 PARTICLE MORPHING ENGINE
+        // ==========================================
+        let scene, camera3D, renderer;
+        let particleSystem, particleGeo;
+        const PARTICLE_COUNT = 6000;
+
+        // Particle Coordinate Buffers
+        let currentPositions = new Float32Array(PARTICLE_COUNT * 3);
+        let targetPositions = new Float32Array(PARTICLE_COUNT * 3);
+        let colors = new Float32Array(PARTICLE_COUNT * 3);
+
+        // Pre-computed Target Morph Shapes
+        const shapes = {
+            HEART: new Float32Array(PARTICLE_COUNT * 3),
+            SATURN: new Float32Array(PARTICLE_COUNT * 3),
+            STARBURST: new Float32Array(PARTICLE_COUNT * 3),
+            SWARM: new Float32Array(PARTICLE_COUNT * 3)
+        };
+
+        function generateShapes() {
+            // 1. HEART SHAPE ("I ❤️ YOU") + Text Aura
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                if (i < PARTICLE_COUNT * 0.75) {
+                    // 3D Parametric Heart Formula
+                    const t = Math.random() * Math.PI * 2;
+                    const u = (Math.random() - 0.5) * Math.PI;
+
+                    // Heart parametric
+                    const x = 16 * Math.pow(Math.sin(t), 3);
+                    const y = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
+                    const z = (Math.random() - 0.5) * 4;
+
+                    const scale = 0.35;
+                    shapes.HEART[i * 3] = x * scale;
+                    shapes.HEART[i * 3 + 1] = y * scale;
+                    shapes.HEART[i * 3 + 2] = z * scale;
+                } else {
+                    // Sparkling outer aura surrounding heart
+                    const r = Math.random() * 8 + 4;
+                    const theta = Math.random() * Math.PI * 2;
+                    shapes.HEART[i * 3] = Math.cos(theta) * r;
+                    shapes.HEART[i * 3 + 1] = Math.sin(theta) * r;
+                    shapes.HEART[i * 3 + 2] = (Math.random() - 0.5) * 3;
+                }
+            }
+
+            // 2. PLANET ZUHAL (SATURN + RINGS)
+            const globeParticles = Math.floor(PARTICLE_COUNT * 0.45);
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                if (i < globeParticles) {
+                    // Saturn Planet Sphere Body
+                    const radius = 3.2;
+                    const theta = Math.random() * Math.PI * 2;
+                    const phi = Math.acos(2 * Math.random() - 1);
+
+                    shapes.SATURN[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
+                    shapes.SATURN[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
+                    shapes.SATURN[i * 3 + 2] = radius * Math.cos(phi);
+                } else {
+                    // Saturn Concentric Rings (Tilted)
+                    const innerR = 4.2;
+                    const outerR = 8.5;
+                    const r = innerR + Math.random() * (outerR - innerR);
+                    const theta = Math.random() * Math.PI * 2;
+
+                    // Tilted ring coords
+                    const x = Math.cos(theta) * r;
+                    const z = Math.sin(theta) * r;
+                    const y = (Math.random() - 0.5) * 0.2;
+
+                    // Tilt by 25 degrees
+                    const tilt = 0.45;
+                    shapes.SATURN[i * 3] = x;
+                    shapes.SATURN[i * 3 + 1] = y * Math.cos(tilt) - z * Math.sin(tilt);
+                    shapes.SATURN[i * 3 + 2] = y * Math.sin(tilt) + z * Math.cos(tilt);
+                }
+            }
+
+            // 3. STARBURSTExplosion (Bintang Berterabur)
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                const r = Math.random() * 16 + 2;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = (Math.random() - 0.5) * Math.PI;
+
+                shapes.STARBURST[i * 3] = r * Math.cos(theta) * Math.cos(phi);
+                shapes.STARBURST[i * 3 + 1] = r * Math.sin(phi);
+                shapes.STARBURST[i * 3 + 2] = r * Math.sin(theta) * Math.cos(phi);
+            }
+
+            // 4. AMBIENT SWARM (Default Cloud)
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                const r = Math.random() * 10 + 1;
+                const theta = Math.random() * Math.PI * 2;
+                shapes.SWARM[i * 3] = Math.cos(theta) * r;
+                shapes.SWARM[i * 3 + 1] = (Math.random() - 0.5) * 10;
+                shapes.SWARM[i * 3 + 2] = Math.sin(theta) * r;
+            }
+        }
+
+        function initThreeJS() {
+            scene = new THREE.Scene();
+            camera3D = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera3D.position.z = 16;
+
+            renderer = new THREE.WebGLRenderer({ canvas: webglCanvas, alpha: true, antialias: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(1);
+
+            generateShapes();
+
+            // Initialize buffer geometry
+            particleGeo = new THREE.BufferGeometry();
+            for (let i = 0; i < PARTICLE_COUNT * 3; i++) {
+                currentPositions[i] = shapes.SWARM[i];
+                targetPositions[i] = shapes.SWARM[i];
+
+                if (i % 3 === 0) {
+                    colors[i] = 0.0;      // R
+                    colors[i + 1] = 0.95; // G
+                    colors[i + 2] = 1.0;  // B
+                }
+            }
+
+            particleGeo.setAttribute('position', new THREE.BufferAttribute(currentPositions, 3));
+            particleGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+            // Custom glowing particle material
+            const particleMat = new THREE.PointsMaterial({
+                size: 0.2,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.9,
+                blending: THREE.AdditiveBlending
+            });
+
+            particleSystem = new THREE.Points(particleGeo, particleMat);
+            scene.add(particleSystem);
+        }
+
+        // Morph Particles Target Position & Colors
+        function morphTo(shapeKey, colorHex, gestureLabel, soundType) {
+            if (state.activeMorph === shapeKey) return;
+            state.activeMorph = shapeKey;
+
+            shapeBadge.innerText = gestureLabel;
+            if (soundType) playGestureSound(soundType);
+
+            const targetArray = shapes[shapeKey] || shapes.SWARM;
+            for (let i = 0; i < PARTICLE_COUNT * 3; i++) {
+                targetPositions[i] = targetArray[i];
+            }
+
+            // Update Color Palette
+            const targetColor = new THREE.Color(colorHex);
+            const colorAttr = particleGeo.attributes.color.array;
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                colorAttr[i * 3] = targetColor.r;
+                colorAttr[i * 3 + 1] = targetColor.g;
+                colorAttr[i * 3 + 2] = targetColor.b;
+            }
+            particleGeo.attributes.color.needsUpdate = true;
+        }
+
+        // ==========================================
+        // 3. GESTURE RECOGNITION (PEACE, FIST, HIGH-FIVE)
+        // ==========================================
+        function analyzeGestures(hand) {
+            const thumbTip = hand[4];
+            const indexTip = hand[8];
+            const middleTip = hand[12];
+            const ringTip = hand[16];
+            const pinkyTip = hand[20];
+
+            const dx = thumbTip.x - indexTip.x;
+            const dy = thumbTip.y - indexTip.y;
+            const pinchDist = Math.sqrt(dx*dx + dy*dy);
+            state.pinchDistance = pinchDist;
+
+            const isIndexExtended = indexTip.y < hand[6].y;
+            const isMiddleExtended = middleTip.y < hand[10].y;
+            const isRingExtended = ringTip.y < hand[14].y;
+            const isPinkyExtended = pinkyTip.y < hand[18].y;
+
+            // GESTURE CLASSIFICATION:
+            // 1. Peace (V-Sign) -> Morph into "I ❤️ YOU"
+            if (isIndexExtended && isMiddleExtended && !isRingExtended && !isPinkyExtended) {
+                return 'PEACE';
+            }
+            // 2. Fist (Genggam) -> Morph into Planet Zuhal / Saturn
+            if (!isIndexExtended && !isMiddleExtended && !isRingExtended && !isPinkyExtended) {
+                return 'FIST';
+            }
+            // 3. High Five / Open Palm -> Starburst (Bintang Berterabur)
+            if (isIndexExtended && isMiddleExtended && isRingExtended && isPinkyExtended) {
+                return 'OPEN_PALM';
+            }
+            // 4. Pointing -> Finger Stream
+            if (isIndexExtended && !isMiddleExtended && !isRingExtended && !isPinkyExtended) {
+                return 'POINT';
+            }
+            // 5. Pinch -> Vortex
+            if (pinchDist < 0.065) {
+                return 'PINCH';
+            }
+
+            return 'OPEN_PALM';
+        }
+
+        // ==========================================
+        // 4. MEDIAPIPE FRAME LOGIC
+        // ==========================================
+        let isProcessingFrame = false;
+
+        function onResults(results) {
+            overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+            pipCtx.clearRect(0, 0, pipCanvas.width, pipCanvas.height);
+
+            if (results.image) {
+                pipCtx.drawImage(results.image, 0, 0, pipCanvas.width, pipCanvas.height);
+            }
+
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                state.handDetected = true;
+                const hand = results.multiHandLandmarks[0];
+
+                const gesture = analyzeGestures(hand);
+                state.currentGesture = gesture;
+
+                const indexTip = hand[8];
+                const targetX = state.mirrored ? (1 - indexTip.x) : indexTip.x;
+                const targetY = indexTip.y;
+
+                state.handPos.x += (targetX - state.handPos.x) * 0.3;
+                state.handPos.y += (targetY - state.handPos.y) * 0.3;
+
+                // TRIGGER PARTICLE MORPH SHAPES BASED ON GESTURE
+                if (gesture === 'PEACE') {
+                    morphTo('HEART', '#ff007f', '✌️ Gestur Peace: Partikel "I ❤️ YOU"', 'heart');
+                } else if (gesture === 'FIST') {
+                    morphTo('SATURN', '#f59e0b', '✊ Gestur Genggam: Planet Zuhal (Saturn)', 'saturn');
+                } else if (gesture === 'OPEN_PALM') {
+                    morphTo('STARBURST', '#00f3ff', '🖐️ Tapak Tangan: Bintang Berterabur', 'star');
+                } else if (gesture === 'POINT') {
+                    morphTo('SWARM', '#10b981', '☝️ Tunjuk Jari: Penarik Partikel Persis', null);
+                } else if (gesture === 'PINCH') {
+                    morphTo('SWARM', '#a855f7', '🤏 Pinch: Pusaran Partikel Compact', null);
+                }
+
+                // Draw Minimal Clean Skeleton Overlay
+                drawCleanSkeleton(hand, overlayCtx);
+                drawCleanSkeleton(hand, pipCtx, true);
+
+                statusText.innerText = "Tangan dikesan! Beralih gestur untuk bentuk zarah.";
+            } else {
+                state.handDetected = false;
+                statusText.innerText = "Kamera aktif! Tunjukkan tangan anda ke arah kamera";
+            }
+
+            updateParticlePhysics();
+        }
+
+        // Minimal Clean Skeleton Drawing (No tech clutter)
+        function drawCleanSkeleton(landmarks, ctx, isPip = false) {
+            const w = isPip ? pipCanvas.width : overlayCanvas.width;
+            const h = isPip ? pipCanvas.height : overlayCanvas.height;
+
+            const connections = [
+                [0,1],[1,2],[2,3],[3,4],
+                [0,5],[5,6],[6,7],[7,8],
+                [5,9],[9,10],[10,11],[11,12],
+                [9,13],[13,14],[14,15],[15,16],
+                [13,17],[17,18],[18,19],[19,20],[0,17]
+            ];
+
+            ctx.save();
+            ctx.strokeStyle = state.activeMorph === 'HEART' ? '#ff007f' : (state.activeMorph === 'SATURN' ? '#f59e0b' : '#00f3ff');
+            ctx.lineWidth = isPip ? 1.5 : 2;
+
+            connections.forEach(([i, j]) => {
+                const p1 = landmarks[i];
+                const p2 = landmarks[j];
+                const x1 = (state.mirrored ? (1 - p1.x) : p1.x) * w;
+                const y1 = p1.y * h;
+                const x2 = (state.mirrored ? (1 - p2.x) : p2.x) * w;
+                const y2 = p2.y * h;
+
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+            });
+
+            landmarks.forEach((p, idx) => {
+                const x = (state.mirrored ? (1 - p.x) : p.x) * w;
+                const y = p.y * h;
+
+                ctx.beginPath();
+                ctx.arc(x, y, idx === 8 ? (isPip ? 3 : 6) : (isPip ? 1.5 : 3), 0, Math.PI * 2);
+                ctx.fillStyle = idx === 8 ? '#ffffff' : (state.activeMorph === 'HEART' ? '#ff007f' : '#00f3ff');
+                ctx.fill();
+            });
+
+            ctx.restore();
+        }
+
+        // ==========================================
+        // 5. THREE.JS PARTICLE PHYSICS UPDATE
+        // ==========================================
+        function updateParticlePhysics() {
+            if (!particleSystem) return;
+
+            const pos = particleGeo.attributes.position.array;
+            const hand3DX = (state.handPos.x - 0.5) * 22;
+            const hand3DY = -(state.handPos.y - 0.5) * 16;
+
+            // Move entire particle system towards active hand center smoothly
+            if (state.handDetected) {
+                particleSystem.position.x += (hand3DX - particleSystem.position.x) * 0.1;
+                particleSystem.position.y += (hand3DY - particleSystem.position.y) * 0.1;
+            }
+
+            // Smooth Interpolation (Lerp) towards Target Morph Shape
+            const lerpSpeed = 0.08;
+            for (let i = 0; i < PARTICLE_COUNT * 3; i++) {
+                pos[i] += (targetPositions[i] - pos[i]) * lerpSpeed;
+            }
+
+            // Continuous rotation for Saturn and Heart
+            if (state.activeMorph === 'SATURN') {
+                particleSystem.rotation.y += 0.015;
+            } else if (state.activeMorph === 'HEART') {
+                particleSystem.rotation.y = Math.sin(Date.now() * 0.002) * 0.2;
+                particleSystem.rotation.z = Math.cos(Date.now() * 0.002) * 0.08;
+            } else if (state.activeMorph === 'STARBURST') {
+                particleSystem.rotation.y += 0.005;
+                particleSystem.rotation.x += 0.003;
+            } else {
+                particleSystem.rotation.y += 0.004;
+            }
+
+            particleGeo.attributes.position.needsUpdate = true;
+            renderer.render(scene, camera3D);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+        // ==========================================
+        // 6. INITIALIZATION
+        // ==========================================
+        function initApp() {
+            initThreeJS();
+            resizeCanvases();
+
+            const hands = new Hands({
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+            });
+
+            // Fast Lite Model
+            hands.setOptions({
+                maxNumHands: 1,
+                modelComplexity: 0,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
+
+            hands.onResults((results) => {
+                onResults(results);
+                isProcessingFrame = false;
+            });
+
+            const camera = new Camera(videoElement, {
+                onFrame: async () => {
+                    if (!isProcessingFrame) {
+                        isProcessingFrame = true;
+                        await hands.send({ image: videoElement });
+                    }
+                },
+                width: 640,
+                height: 480
+            });
+
+            camera.start()
+                .then(() => {
+                    statusText.innerText = "Mod Zarah Kamera Aktif! Tunjukkan tangan anda";
+                })
+                .catch((err) => {
+                    console.error("Camera Error:", err);
+                    statusText.innerText = "Ralat: Benarkan akses kamera untuk melihat zarah.";
+                });
+        }
+
+        window.addEventListener('DOMContentLoaded', initApp);
     </script>
 </body>
 </html>
