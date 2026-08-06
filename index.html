@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hologram Kawalan Tangan - Mod Zarah 8 Gestur Persis</title>
+    <title>Hologram Kawalan Tangan - Mod Zarah Pure Stable</title>
     
     <!-- Google Fonts: Orbitron & Rajdhani -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -54,7 +54,7 @@
 
         .input_video { display: none; }
 
-        /* Status Badge Top */
+        /* Minimal Status Badge Top */
         .hud-status-badge {
             position: absolute;
             top: 25px;
@@ -111,7 +111,7 @@
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* Camera PiP Viewfinder */
+        /* Camera Viewfinder PiP */
         .camera-pip {
             position: absolute;
             bottom: 25px;
@@ -162,7 +162,7 @@
 
     <!-- Active Gesture Shape Badge -->
     <div class="shape-badge" id="shape-badge">
-        ✨ Mod Zarah Bebas (Tunjukkan Gestur Tangan)
+        ✨ Mod Zarah Pure Stable (Tunjukkan Gestur Tangan)
     </div>
 
     <!-- Camera PiP -->
@@ -436,7 +436,7 @@
             particleGeo.attributes.color.needsUpdate = true;
         }
 
-        // ULTRA DISTINCT GESTURE CLASSIFICATION ENGINE (100% UNAMBIGUOUS)
+        // ULTRA DISTINCT STABLE GESTURE ENGINE
         function analyzeGestures(hand) {
             const thumbTip = hand[4];
             const indexTip = hand[8];
@@ -454,17 +454,17 @@
             const isRingExtended = ringTip.y < hand[14].y;
             const isPinkyExtended = pinkyTip.y < hand[18].y;
 
-            // 1. 👍 Thumbs Up (Big Thumb Pointing Up, All 4 Fingers Folded) -> Ram-Rama 🦋
+            // 1. 👍 Thumbs Up (Thumb up, all 4 fingers folded) -> Ram-Rama 🦋
             if (thumbTip.y < hand[2].y && !isIndexExtended && !isMiddleExtended && !isRingExtended && !isPinkyExtended) {
                 return 'THUMBS_UP';
             }
 
-            // 2. 👌 OK Sign (Thumb & Index tip touching < 0.07, Middle, Ring & Pinky Extended) -> Perisai 🛡️
+            // 2. 👌 OK Sign (Pinch < 0.07, Middle & Ring Extended) -> Perisai 🛡️
             if (pinchDist < 0.07 && isMiddleExtended && isRingExtended) {
                 return 'OK_SIGN';
             }
 
-            // 3. 🫲 Gun / L-Shape (Thumb & Index Extended, Middle, Ring & Pinky Folded) -> Double Helix ♾️
+            // 3. 🫲 Gun / L-Shape (Thumb & Index Extended, others folded) -> Double Helix ♾️
             if (isIndexExtended && !isMiddleExtended && !isRingExtended && !isPinkyExtended && (Math.abs(thumbTip.x - hand[2].x) > 0.08)) {
                 return 'GUN_L';
             }
@@ -479,17 +479,17 @@
                 return 'FIST';
             }
 
-            // 6. 🖐️ High Five / Open Palm (All 5 fingers widely extended) -> Bintang Berterabur 🎆
+            // 6. 🖐️ High Five / Open Palm (All 5 fingers extended) -> Bintang Berterabur 🎆
             if (isIndexExtended && isMiddleExtended && isRingExtended && isPinkyExtended) {
                 return 'OPEN_PALM';
             }
 
-            // 7. ☝️ Pointing (Index Extended ONLY, Thumb folded) -> Magnet Stream ⚡
+            // 7. ☝️ Pointing (Index Extended ONLY) -> Magnet Stream ⚡
             if (isIndexExtended && !isMiddleExtended && !isRingExtended && !isPinkyExtended) {
                 return 'POINT';
             }
 
-            // 8. 🤏 Pinch (Thumb & Index Tip Pinch < 0.065) -> Vortex 🌀
+            // 8. 🤏 Pinch (Pinch < 0.065) -> Vortex 🌀
             if (pinchDist < 0.065) {
                 return 'PINCH';
             }
@@ -497,10 +497,11 @@
             return 'OPEN_PALM';
         }
 
-        // MEDIAPIPE FRAME LOGIC
+        // STABLE MEDIAPIPE FRAME PROCESSING
         let isProcessingFrame = false;
 
         function onResults(results) {
+            // Clear Canvases
             overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
             pipCtx.clearRect(0, 0, pipCanvas.width, pipCanvas.height);
 
@@ -519,10 +520,11 @@
                 const targetX = state.mirrored ? (1 - indexTip.x) : indexTip.x;
                 const targetY = indexTip.y;
 
-                state.handPos.x += (targetX - state.handPos.x) * 0.3;
-                state.handPos.y += (targetY - state.handPos.y) * 0.3;
+                // Ultra Smooth EMA Exponential Moving Average (0.18 lerp for rock solid stability)
+                state.handPos.x += (targetX - state.handPos.x) * 0.18;
+                state.handPos.y += (targetY - state.handPos.y) * 0.18;
 
-                // MORPH MAPPING (100% UNAMBIGUOUS)
+                // MORPH SELECTION
                 if (gesture === 'PEACE') {
                     morphTo('HEART', '#ff007f', '✌️ Gestur Peace: Partikel "I ❤️ YOU"', 'heart');
                 } else if (gesture === 'FIST') {
@@ -541,10 +543,10 @@
                     morphTo('SWARM', '#8b5cf6', '🤏 Pinch: Pusaran Partikel Compact', null);
                 }
 
-                drawCleanSkeleton(hand, overlayCtx);
+                // DRAW HAND SKELETON ONLY IN PIP CORNER (MAIN PARTICLE SCREEN IS 100% CLEAN!)
                 drawCleanSkeleton(hand, pipCtx, true);
 
-                statusText.innerText = "Tangan dikesan! Tunjukkan gestur tangan anda.";
+                statusText.innerText = "Tangan dikesan & stabil! Tunjukkan gestur anda.";
             } else {
                 state.handDetected = false;
                 statusText.innerText = "Kamera aktif! Tunjukkan gestur tangan anda ke arah kamera";
@@ -553,9 +555,10 @@
             updateParticlePhysics();
         }
 
-        function drawCleanSkeleton(landmarks, ctx, isPip = false) {
-            const w = isPip ? pipCanvas.width : overlayCanvas.width;
-            const h = isPip ? pipCanvas.height : overlayCanvas.height;
+        // Draw Skeleton exclusively inside PiP window
+        function drawCleanSkeleton(landmarks, ctx, isPip = true) {
+            const w = pipCanvas.width;
+            const h = pipCanvas.height;
 
             const connections = [
                 [0,1],[1,2],[2,3],[3,4],
@@ -566,8 +569,8 @@
             ];
 
             ctx.save();
-            ctx.strokeStyle = state.activeMorph === 'HEART' ? '#ff007f' : (state.activeMorph === 'SATURN' ? '#f59e0b' : '#00f3ff');
-            ctx.lineWidth = isPip ? 1.5 : 2;
+            ctx.strokeStyle = state.activeMorph === 'HEART' ? '#ff007f' : '#00f3ff';
+            ctx.lineWidth = 1.5;
 
             connections.forEach(([i, j]) => {
                 const p1 = landmarks[i];
@@ -588,7 +591,7 @@
                 const y = p.y * h;
 
                 ctx.beginPath();
-                ctx.arc(x, y, idx === 8 ? (isPip ? 3 : 6) : (isPip ? 1.5 : 3), 0, Math.PI * 2);
+                ctx.arc(x, y, idx === 8 ? 3 : 1.5, 0, Math.PI * 2);
                 ctx.fillStyle = idx === 8 ? '#ffffff' : '#00f3ff';
                 ctx.fill();
             });
@@ -605,8 +608,8 @@
             const hand3DY = -(state.handPos.y - 0.5) * 16;
 
             if (state.handDetected) {
-                particleSystem.position.x += (hand3DX - particleSystem.position.x) * 0.1;
-                particleSystem.position.y += (hand3DY - particleSystem.position.y) * 0.1;
+                particleSystem.position.x += (hand3DX - particleSystem.position.x) * 0.08;
+                particleSystem.position.y += (hand3DY - particleSystem.position.y) * 0.08;
             }
 
             const lerpSpeed = 0.08;
@@ -641,7 +644,7 @@
         }
         animate();
 
-        // INITIALIZATION
+        // HIGH STABILITY INITIALIZATION (minDetectionConfidence & minTrackingConfidence: 0.65)
         function initApp() {
             initThreeJS();
             resizeCanvases();
@@ -650,11 +653,12 @@
                 locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
             });
 
+            // Tighter confidence thresholds for maximum tracking stability!
             hands.setOptions({
                 maxNumHands: 1,
                 modelComplexity: 0,
-                minDetectionConfidence: 0.5,
-                minTrackingConfidence: 0.5
+                minDetectionConfidence: 0.65,
+                minTrackingConfidence: 0.65
             });
 
             hands.onResults((results) => {
@@ -675,7 +679,7 @@
 
             camera.start()
                 .then(() => {
-                    statusText.innerText = "Mod Zarah Kamera Aktif! Tunjukkan pelbagai gestur tangan";
+                    statusText.innerText = "Mod Zarah Stable Kamera Aktif! Tunjukkan gestur tangan anda";
                 })
                 .catch((err) => {
                     console.error("Camera Error:", err);
